@@ -1,0 +1,110 @@
+
+************************************************************************************************************************************************************************************************************************************************************************************
+Introduction:
+This SQL script is dedicated to analyzing aviation upsets using a raw dataset spanning from 1948 to 2022. Below are the key components of the analysis performed in this script:
+************************************************************************************************************************************************************************************************************************************************************************************
+
+
+----- 1. Creating Database for our first Project
+
+
+CREATE DATABASE Aviation_Upsets_Project
+
+************************************************************************************************************************************************************************************************************************************************************************************
+--- 2. 
+       -- a) Importing Aircraft information dataset into the table using a CSV file and Import Wizard Extention, post data cleanup in EXEL.
+       -- b) Importing Investigation Report Dataset into the table using a CSV file and Import Wizard Extention, post data cleanup in EXEL.
+              
+************************************************************************************************************************************************************************************************************************************************************************************
+
+
+SELECT TOP 5 *
+FROM Aviation_Upsets_Project.dbo.Aircraft_Info as Info 
+         JOIN Aviation_Upsets_Project.dbo.Investigation_Findings as Report
+              ON Info.Event_ID = Report.Event_ID
+
+   ----Note: Querring the top 5 Rows to ensure the Dataset import is correct in both tables by using Inner join based on Event ID  
+
+************************************************************************************************************************************************************************************************************************************************************************************
+---3. Finding total deaths in each country from all Aviation Upset Events
+************************************************************************************************************************************************************************************************************************************************************************************
+
+SELECT 
+          info.country, SUM(report.Total_Fatal_Injuries) as Total_Deaths  
+    FROM Aviation_Upsets_Project.dbo.Aircraft_Info as Info 
+         JOIN Aviation_Upsets_Project.dbo.Investigation_Findings as Report
+              ON Info.Event_ID = Report.Event_ID
+    WHERE info.country is NOT NULL AND Report.Total_fatal_Injuries > 0
+Group By Info.Country
+Order by Total_Deaths  DESC
+
+------------Creating a view for future Visualisation-----
+
+Create VIEW Total_Aviation_DeathCount_World AS
+SELECT 
+          info.country, SUM(report.Total_Fatal_Injuries) as Total_Deaths  
+    FROM Aviation_Upsets_Project.dbo.Aircraft_Info as Info 
+         JOIN Aviation_Upsets_Project.dbo.Investigation_Findings as Report
+              ON Info.Event_ID = Report.Event_ID
+    WHERE info.country is NOT NULL AND Report.Total_fatal_Injuries > 0
+Group By Info.Country
+--Order by Total_Deaths  DESC
+
+************************************************************************************************************************************************************************************************************************************************************************************
+--4. Finding out the Death percentage of all people involved in all Aviation upsets (No of fatal Injuries/Total souls Involved)
+       --Note- We are using temp Table to chnage the format of the data set from nvarchar to a flaot for simplyfying our calculations
+************************************************************************************************************************************************************************************************************************************************************************************
+
+
+Drop Table if exists #DeathpercentTable
+Create Table #DeathpercentTable
+(
+    Total_Upsets Float,
+    Total_Souls_Involved Float,
+    Total_DeathCount Float
+)
+
+INSERT INTO #DeathpercentTable
+SELECT Count(report.Event_ID) , SUM(Report.Total_uninjured + Report.Total_serious_Injuries + Report.Total_minor_Injuries + Report.Total_fatal_Injuries) , SUM(Report.Total_fatal_Injuries) 
+FROM Aviation_Upsets_Project.dbo.Investigation_Findings as Report
+
+------Verify our Output and View death percentage of all souls involved-----
+
+Select * , (Total_deathcount/Total_Souls_Involved) * 100 AS DeathPercentage
+from #DeathpercentTable
+
+************************************************************************************************************************************************************************************************************************************************************************************
+--5. Finding the number of times an aircraft from the following manufacturers was involved.
+************************************************************************************************************************************************************************************************************************************************************************************
+
+
+DROP Table if exists #Make_Percentage
+Create Table #Make_Percentage
+(
+    Make varchar(50),
+    N_O_Events int,
+)
+
+INSERT INTO #Make_Percentage
+
+SELECT Info.Make, Count(info.make) 
+ FROM [dbo].[Aircraft_Info] AS Info
+ Where info.Make = 'Boeing' OR info.Make = 'Airbus' OR info.Make = 'CESSNA' OR info.Make = 'PIPER' OR info.Make = 'EMBRAER' OR info.Make = 'BEECH' AND Info.Amateur_Built = 'NO'
+ Group BY Info.make 
+ --Order By N_O_Events DESC
+
+----Verifying and keeping the table for Visualisation---
+
+SELECT * 
+ FROM #Make_Percentage
+ Order BY 2 DESC
+        
+************************************************************************************************************************************************************************************************************************************************************************************
+--6. Finding Events Per Country
+************************************************************************************************************************************************************************************************************************************************************************************
+
+
+SELECT Info.Country, COUNT(INfo.Country) AS Events_Per_Country
+FROM [dbo].[Aircraft_Info] AS INFO
+Group by Info.Country
+Order BY Events_Per_Country DESC
